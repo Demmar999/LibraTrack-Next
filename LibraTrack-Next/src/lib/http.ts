@@ -1,4 +1,5 @@
 /* Helpers shared by the API route files (src/app/api/**). They use the standard Request / Response objects. */
+
 import { AppError } from "./errors";
 import { readSession, tokenFromRequest } from "./auth";
 import type { Db, Role, SafeUser } from "./types";
@@ -46,12 +47,16 @@ const DB_DOWN = [
 
 export function errorResponse(e: unknown): Response {
   if (e instanceof AppError) return json({ error: e.message }, e.status);
+
   const code =
     typeof e === "object" && e !== null && "code" in e
       ? String((e as { code: unknown }).code)
       : "";
-  if (code === "23505")
+
+  if (code === "23505") {
     return json({ error: "That email is already registered." }, 409);
+  }
+
   if (
     DB_DOWN.includes(code) ||
     (e instanceof Error && e.message.includes("DATABASE_URL"))
@@ -65,23 +70,26 @@ export function errorResponse(e: unknown): Response {
       503,
     );
   }
+
   console.error(e);
   return json({ error: "Something went wrong. Please try again." }, 500);
 }
 
 /**
-  Wraps a route so that any thrown AppError becomes a clean JSON error.
-  For routes with a dynamic segment (like /api/books/[id]) the params are passed as the 2nd argument.
-*/
+ * Wraps a route so that thrown AppErrors become clean JSON errors.
+ * Supports both regular API routes and dynamic API routes.
+ */
 export function route<P extends Record<string, string> = Record<string, never>>(
   fn: (req: Request, params: P) => Promise<Response> | Response,
 ) {
   return async (
     req: Request,
-    ctx?: { params: Promise<P> },
+    ctx: { params: Promise<P> } = {
+      params: Promise.resolve({} as P),
+    },
   ): Promise<Response> => {
     try {
-      const params = ctx ? await ctx.params : ({} as P);
+      const params = await ctx.params;
       return await fn(req, params);
     } catch (e) {
       return errorResponse(e);
@@ -92,6 +100,7 @@ export function route<P extends Record<string, string> = Record<string, never>>(
 export async function readJson(req: Request): Promise<Record<string, unknown>> {
   try {
     const body: unknown = await req.json();
+
     return typeof body === "object" && body !== null
       ? (body as Record<string, unknown>)
       : {};
@@ -110,16 +119,23 @@ export function isHttps(req: Request): boolean {
 /** The logged-in user for this request (or null). */
 export function currentUser(db: Db, req: Request): SafeUser | null {
   const id = readSession(tokenFromRequest(req));
+
   if (!id) return null;
+
   const u = db.users.find((x) => x.id === id);
+
   return u && u.status === "active" ? safeUser(u) : null;
 }
 
-/** Stops the request unless someone is logged in (and has the right role, if one is given). */
+/** Stops the request unless someone is logged in and has the right role. */
 export function requireUser(db: Db, req: Request, role?: Role): SafeUser {
   const user = currentUser(db, req);
+
   if (!user) throw new AppError("Please log in first.", 401);
-  if (role && user.role !== role)
+
+  if (role && user.role !== role) {
     throw new AppError("You do not have permission to do this.", 403);
+  }
+
   return user;
 }
