@@ -1,4 +1,5 @@
-/* Helpers shared by the API route files (src/app/api/**). They use the standard Request / Response objects. */
+/* Helpers shared by the API route files (src/app/api/**).
+   They use the standard Request / Response objects. */
 
 import { AppError } from "./errors";
 import { readSession, tokenFromRequest } from "./auth";
@@ -6,7 +7,7 @@ import type { Db, Role, SafeUser } from "./types";
 import { safeUser } from "./service";
 
 export const str = (v: unknown): string =>
-  (v === undefined || v === null ? "" : String(v)).trim();
+  v === undefined || v === null ? "" : String(v).trim();
 
 export function json(
   data: unknown,
@@ -46,7 +47,9 @@ const DB_DOWN = [
 ];
 
 export function errorResponse(e: unknown): Response {
-  if (e instanceof AppError) return json({ error: e.message }, e.status);
+  if (e instanceof AppError) {
+    return json({ error: e.message }, e.status);
+  }
 
   const code =
     typeof e === "object" && e !== null && "code" in e
@@ -84,9 +87,7 @@ export function route<P extends Record<string, string> = Record<string, never>>(
 ) {
   return async (
     req: Request,
-    ctx: { params: Promise<P> } = {
-      params: Promise.resolve({} as P),
-    },
+    ctx: { params: Promise<P> },
   ): Promise<Response> => {
     try {
       const params = await ctx.params;
@@ -109,6 +110,7 @@ export async function readJson(req: Request): Promise<Record<string, unknown>> {
   }
 }
 
+/** Detects HTTPS requests, including those behind a proxy. */
 export function isHttps(req: Request): boolean {
   return (
     req.headers.get("x-forwarded-proto") === "https" ||
