@@ -5,6 +5,7 @@ import { SettingsPanel } from "@/components/settings-panel";
 export const metadata: Metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
 
-export default function SettingsPage() {
-  return <SettingsPanel settings={query((db) => db.settings)} />;
+export default async function SettingsPage() {
+  const settings = await query((db) => db.settings);
+  return <SettingsPanel settings={settings} />;
 }

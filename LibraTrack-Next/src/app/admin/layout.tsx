@@ -1,11 +1,17 @@
-import type { Metadata } from "next";
-import { query } from "@/lib/db";
-import { SettingsPanel } from "@/components/settings-panel";
+import { AppShell } from "@/components/app-shell";
+import { requireRole } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
-  const settings = await query((db) => db.settings);
-  return <SettingsPanel settings={settings} />;
+export default async function Layout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const user = await requireRole("admin");
+  return (
+    <AppShell user={user} role="admin">
+      {children}
+    </AppShell>
+  );
 }
